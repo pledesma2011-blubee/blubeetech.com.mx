@@ -191,7 +191,7 @@
       .demo-opt-wa:hover{background:#178f46}
       .demo-opt-mail{background:var(--navy-800); color:#fff; border:1.5px solid rgba(169,205,243,.5)}
       .demo-opt-mail:hover{border-color:var(--bee); color:var(--bee)}
-      .burger{display:block; margin-left:auto; background:none; border:0; cursor:pointer; padding:10px; color:#fff}
+      .burger{display:flex; align-items:center; gap:8px; margin-left:auto; background:none; border:0; cursor:pointer; padding:10px; color:#fff}.burger-label{font-size:15px; font-weight:600; letter-spacing:.02em}
       .burger svg{width:26px; height:26px}
       .mobile-nav{display:none; background:var(--navy-950); border-top:1px solid rgba(255,255,255,.08); padding:14px 24px 20px}
       .mobile-nav a{
@@ -1595,6 +1595,7 @@ body.app-nav .pgview:focus{outline:none}
           </button>
           <button class="burger" id="burger" aria-label="Abrir menú" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+            <span class="burger-label">Menú</span>
           </button>
         </nav>
       </div>
