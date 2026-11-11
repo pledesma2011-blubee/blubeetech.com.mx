@@ -191,7 +191,7 @@
       .demo-opt-wa:hover{background:#178f46}
       .demo-opt-mail{background:var(--navy-800); color:#fff; border:1.5px solid rgba(169,205,243,.5)}
       .demo-opt-mail:hover{border-color:var(--bee); color:var(--bee)}
-      .burger{display:none; margin-left:auto; background:none; border:0; cursor:pointer; padding:10px; color:#fff}
+      .burger{display:block; margin-left:auto; background:none; border:0; cursor:pointer; padding:10px; color:#fff}
       .burger svg{width:26px; height:26px}
       .mobile-nav{display:none; background:var(--navy-950); border-top:1px solid rgba(255,255,255,.08); padding:14px 24px 20px}
       .mobile-nav a{
@@ -208,6 +208,21 @@
          estilo base aunque llevara la clase activa. */
       .mobile-nav a.home-m.act{background:var(--navy-800); border-color:rgba(169,205,243,.30); color:#fff; box-shadow:none}
       .mobile-nav.open{display:flex; flex-wrap:wrap; gap:8px}
+      /* Menú hamburguesa en todas las pantallas (2026-11-11, Peter y Raúl):
+         las píldoras del encabezado quedan ocultas siempre; solo se ven el
+         logo y las tres rayitas. El menú se despliega con todos los enlaces. */
+      .main-nav a.nl, .main-nav .btn, .home-btn{display:none}
+      /* "Agendar una demo" dentro del menú desplegado: píldora con contorno
+         verde apagado, como en el encabezado. Es un botón, no un enlace. */
+      .mobile-nav button.demo-open{
+        display:inline-flex; align-items:center; gap:7px;
+        color:#fff; background:var(--navy-800); border:1.5px solid rgba(63,178,110,.5);
+        font-family:"Manrope",sans-serif; font-weight:700; font-size:14px; padding:9px 15px; border-radius:999px;
+        cursor:pointer;
+        transition:background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+      }
+      .mobile-nav button.demo-open svg{width:16px; height:16px; flex:none}
+      .mobile-nav button.demo-open:hover{background:var(--navy-700); border-color:rgba(63,178,110,.85); color:#fff}
 
       /* ---------- Hero ---------- */
       .hero{
@@ -1595,6 +1610,7 @@ body.app-nav .pgview:focus{outline:none}
         <a class="m-new" href="#vinedos">Proyecto nuevo</a>
         <a href="#faq">Preguntas frecuentes</a>
         <a href="#contacto">Contacto</a>
+        <button type="button" class="demo-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 10h18"/><path d="M8 2.5v4M16 2.5v4"/></svg>Agendar una demo</button>
       </nav>
     </header>
 
@@ -4571,17 +4587,31 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
 
     <script>
       (function () {
-        // Mobile menu
+        // Mobile menu (hamburguesa en todas las pantallas)
         var burger = document.getElementById('burger');
         var mobileNav = document.getElementById('mobileNav');
+        function closeMenu() {
+          mobileNav.classList.remove('open');
+          burger.setAttribute('aria-expanded', 'false');
+        }
         burger.addEventListener('click', function () {
           var open = mobileNav.classList.toggle('open');
           burger.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
         mobileNav.addEventListener('click', function (e) {
-          if (e.target.tagName === 'A') {
-            mobileNav.classList.remove('open');
-            burger.setAttribute('aria-expanded', 'false');
+          if (e.target.closest('a, button')) {
+            closeMenu();
+          }
+        });
+        document.addEventListener('keydown', function (e) {
+          if ((e.key === 'Escape' || e.key === 'Esc') && mobileNav.classList.contains('open')) {
+            closeMenu();
+            burger.focus();
+          }
+        });
+        document.addEventListener('click', function (e) {
+          if (mobileNav.classList.contains('open') && !mobileNav.contains(e.target) && !burger.contains(e.target)) {
+            closeMenu();
           }
         });
 
