@@ -90,7 +90,7 @@
         background:rgba(5,15,31,.82); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
         border-bottom:1px solid rgba(255,255,255,.08);
       }
-      .header-in{display:flex; align-items:center; gap:14px; height:72px}
+      .header-in{display:flex; align-items:center; gap:12px; height:72px}
       .brand{display:flex; align-items:center; text-decoration:none; color:#fff; flex:none}
       .brand img{height:56px; width:auto; border-radius:9px; box-shadow:0 4px 14px rgba(0,0,0,.4)}
       .home-btn{
@@ -104,17 +104,23 @@
       .home-btn:hover{background:#ffd94d; border-color:#ffd94d}
       .home-btn:active{transform:translateY(1px)}
       .home-btn.act{background:#ffd94d; border-color:#ffd94d; box-shadow:0 0 0 3px rgba(255,217,77,.35), 0 8px 20px -8px rgba(255,200,31,.55)}
-      .main-nav{margin-left:auto; display:flex; align-items:center; gap:7px}
+      .main-nav{margin-left:auto; display:flex; align-items:center; gap:6px}
       .main-nav a.nl{
         display:inline-flex; align-items:center; white-space:nowrap;
         color:#dcebfb; background:var(--navy-800); border:1.5px solid rgba(169,205,243,.30);
         text-decoration:none; font-weight:700; font-size:13.5px; letter-spacing:.01em;
-        padding:8px 13px; border-radius:999px;
+        padding:8px 12px; border-radius:999px;
         transition:background .18s ease, color .18s ease, border-color .18s ease;
       }
       .main-nav a.nl:hover{background:var(--bee); border-color:var(--bee); color:#231a00}
       .main-nav a.nl.act{background:var(--bee); border-color:var(--bee); color:#231a00}
-      .main-nav .btn-wa{margin-left:6px}
+      /* El botón verde de la demo va en UNA sola línea y con el mismo alto
+         que las píldoras del menú (mismo padding vertical, fuente y borde),
+         sin encogerse aunque el menú vaya justo de ancho en una laptop. */
+      .main-nav .btn-wa{
+        margin-left:4px; flex:none; white-space:nowrap;
+        font-size:13.5px; padding:8px 14px; border:1.5px solid var(--wa);
+      }
       .btn{
         display:inline-flex; align-items:center; gap:9px; border:0; cursor:pointer;
         font-family:"Manrope",sans-serif; font-weight:800; font-size:15px; text-decoration:none;
@@ -785,6 +791,19 @@
       .vinedos-section .sec-head h2{color:#fff}
       .vinedos-section .sec-head p{color:#c3d6ec}
       .vinedos-section .kicker{color:#ff9a8a}
+      /* Al abrir la vista, el video se ve COMPLETO en la primera pantalla,
+         sin scroll: el párrafo introductorio corre a todo el ancho útil
+         (2-3 renglones en vez de 5), hay menos aire antes del video y el
+         marco 16:9 lleva un ancho máximo pensado para la altura de una
+         laptop, con topes extra en pantallas más bajas. */
+      .vinedos-section .sec-head{max-width:1120px; margin-bottom:30px}
+      .vinedos-section .video-frame{max-width:840px}
+      @media (max-height:860px){
+        .vinedos-section .video-frame{max-width:760px}
+      }
+      @media (max-height:740px){
+        .vinedos-section .video-frame{max-width:660px}
+      }
       .vin-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:44px}
       .vin-card{
         background:linear-gradient(165deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
