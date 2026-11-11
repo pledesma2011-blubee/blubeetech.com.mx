@@ -453,6 +453,15 @@
       .step-img img{width:100%; height:100%; object-fit:cover}
       .plat-feat .pf-img{width:78px; height:60px; border-radius:12px; overflow:hidden; flex:none; box-shadow:var(--shadow-sm)}
       .plat-feat .pf-img img{width:100%; height:100%; object-fit:cover}
+      /* Plataforma · la fotografía crece sutilmente al pasar el cursor o al tocar el apartado */
+      .plat-feat .pf-img{transition:transform .3s ease, box-shadow .3s ease}
+      .plat-feat .pf-img img{transition:transform .35s ease}
+      .plat-feat:hover .pf-img,.plat-feat:active .pf-img{transform:scale(1.10); box-shadow:var(--shadow-md)}
+      .plat-feat:hover .pf-img img,.plat-feat:active .pf-img img{transform:scale(1.05)}
+      @media (prefers-reduced-motion: reduce){
+        .plat-feat .pf-img,.plat-feat .pf-img img{transition:none}
+        .plat-feat:hover .pf-img,.plat-feat:active .pf-img,.plat-feat:hover .pf-img img,.plat-feat:active .pf-img img{transform:none}
+      }
       .proc{padding:0; overflow:hidden}
       .proc-img{position:relative; height:138px}
       .proc-img img{width:100%; height:100%; object-fit:cover}
