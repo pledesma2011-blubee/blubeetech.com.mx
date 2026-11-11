@@ -281,6 +281,19 @@
       .tech-strip .ts-item::after{content:""; width:5px; height:5px; border-radius:50%; background:rgba(255,200,31,.7)}
       .tech-strip .ts-item:last-child::after{display:none}
 
+      /* ---------- Marquesina de tecnologías: el título queda fijo, los ítems corren en loop de izquierda a derecha ---------- */
+      .tech-strip .wrap{flex-wrap:nowrap}
+      .tech-strip .ts-label{flex:none}
+      .ts-marquee{flex:1 1 auto; min-width:0; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent); mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent)}
+      .ts-track{display:flex; align-items:center; width:max-content; animation:ts-scroll 30s linear infinite}
+      .ts-track .ts-item{display:inline-flex; align-items:center; gap:10px; margin-right:34px; white-space:nowrap}
+      .ts-track .ts-item::after{content:""; width:5px; height:5px; border-radius:50%; background:rgba(255,200,31,.7); flex:none}
+      .tech-strip .ts-track .ts-item:last-child::after{display:block}
+      .ts-ico{width:18px; height:18px; flex:none}
+      .tech-strip:hover .ts-track{animation-play-state:paused}
+      @keyframes ts-scroll{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+      @media (prefers-reduced-motion: reduce){.ts-track{animation:none}.ts-track .ts-item[aria-hidden="true"]{display:none}}
+
       /* ---------- Sections ---------- */
       .section{padding:96px 0}
       .section-soft{background:var(--bg-soft)}
@@ -1066,6 +1079,7 @@
         .about-photo img{height:320px}
         .foot-grid{grid-template-columns:1fr}
         .tech-strip .wrap{gap:10px 22px}
+        .tech-strip .ts-label{font-size:11px; letter-spacing:.14em; max-width:132px}
         .proc-grid{grid-template-columns:1fr}
         .mv-grid{grid-template-columns:1fr}
         .sec-panel{grid-template-columns:1fr}
@@ -1646,11 +1660,20 @@ body.app-nav .pgview:focus{outline:none}
       <div class="tech-strip">
         <div class="wrap">
           <span class="ts-label">Tecnologías que integramos</span>
-          <span class="ts-item">Bluetooth LE</span>
-          <span class="ts-item">LoRaWAN</span>
-          <span class="ts-item">Wi-Fi</span>
-          <span class="ts-item">GPS / GNSS</span>
-          <span class="ts-item">RFID</span>
+          <div class="ts-marquee">
+            <div class="ts-track">
+          <span class="ts-item"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="13" width="6" height="7" rx="2"/><path d="M12 13V9.5"/><path d="M8.8 7.2a4.6 4.6 0 0 1 6.4 0"/><path d="M6.4 4.6a8 8 0 0 1 11.2 0"/></svg>Bluetooth LE</span>
+          <span class="ts-item"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="11" width="8" height="9" rx="2"/><path d="M12 11V7"/><circle cx="12" cy="5" r="1"/><path d="M6.8 8.5a7.5 7.5 0 0 1 10.4 0"/></svg>LoRaWAN</span>
+          <span class="ts-item"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="18.5" r="1.5" fill="currentColor" stroke="none"/><path d="M8 15a6 6 0 0 1 8 0"/><path d="M5 11.5a10.2 10.2 0 0 1 14 0"/></svg>Wi-Fi</span>
+          <span class="ts-item"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="2.2"/><path d="M9.5 11.5 6.5 9M14.5 11.5l3-2.5M9.5 14.5l-3 2.5M14.5 14.5l3 2.5"/><path d="M7.5 5.5a9 9 0 0 1 9 0"/></svg>GPS / GNSS</span>
+          <span class="ts-item"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h7l9 9-7 7-9-9V4z"/><circle cx="8.5" cy="8.5" r="1.4"/><path d="M15.5 6.5a6.5 6.5 0 0 1 2.5 2.5"/></svg>RFID</span>
+          <span class="ts-item" aria-hidden="true"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="13" width="6" height="7" rx="2"/><path d="M12 13V9.5"/><path d="M8.8 7.2a4.6 4.6 0 0 1 6.4 0"/><path d="M6.4 4.6a8 8 0 0 1 11.2 0"/></svg>Bluetooth LE</span>
+          <span class="ts-item" aria-hidden="true"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="11" width="8" height="9" rx="2"/><path d="M12 11V7"/><circle cx="12" cy="5" r="1"/><path d="M6.8 8.5a7.5 7.5 0 0 1 10.4 0"/></svg>LoRaWAN</span>
+          <span class="ts-item" aria-hidden="true"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="18.5" r="1.5" fill="currentColor" stroke="none"/><path d="M8 15a6 6 0 0 1 8 0"/><path d="M5 11.5a10.2 10.2 0 0 1 14 0"/></svg>Wi-Fi</span>
+          <span class="ts-item" aria-hidden="true"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="2.2"/><path d="M9.5 11.5 6.5 9M14.5 11.5l3-2.5M9.5 14.5l-3 2.5M14.5 14.5l3 2.5"/><path d="M7.5 5.5a9 9 0 0 1 9 0"/></svg>GPS / GNSS</span>
+          <span class="ts-item" aria-hidden="true"><svg class="ts-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h7l9 9-7 7-9-9V4z"/><circle cx="8.5" cy="8.5" r="1.4"/><path d="M15.5 6.5a6.5 6.5 0 0 1 2.5 2.5"/></svg>RFID</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
