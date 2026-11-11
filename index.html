@@ -852,6 +852,14 @@
         width:100%; height:auto; position:relative;
         filter:drop-shadow(0 3px 7px rgba(224,168,0,.4)) drop-shadow(0 0 6px rgba(255,200,31,.3));
       }
+      /* Cuando vuela hacia la izquierda, la abeja mira hacia donde va
+         y su estela dorada queda detrás, del lado derecho. */
+      .bee-flyer.facing-left img{transform:scaleX(-1)}
+      .bee-flyer.facing-left .bee-trail{
+        right:auto; left:74%;
+        background:linear-gradient(270deg, rgba(255,200,31,0), rgba(255,200,31,.45), rgba(255,226,120,.65));
+        clip-path:polygon(100% 50%, 0 6%, 0 94%);
+      }
       .bee-trail{
         position:absolute; top:52%; right:74%; width:78px; height:9px; transform:translateY(-50%);
         background:linear-gradient(90deg, rgba(255,200,31,0), rgba(255,200,31,.45), rgba(255,226,120,.65));
@@ -1264,7 +1272,7 @@
 .bbdemo .chatForm button{border:0;background:var(--blue);color:#fff;font-family:inherit;font-weight:800;font-size:13px;border-radius:10px;padding:9px 14px;cursor:pointer}
 .bbdemo #arWrap{display:none;width:100%;max-width:880px;margin:auto}
 .bbdemo .stage.ar #arWrap{display:block}
-.bbdemo .stage.ar .mapTilt,.bbdemo .stage.ar .toggles,.bbdemo .stage.ar .mapBtns,.bbdemo .stage.ar .rzBox,.bbdemo .stage.ar .boardTag,.bbdemo .stage.ar .mapHint{display:none}
+.bbdemo .stage.ar .mapTilt,.bbdemo .stage.ar .toggles,.bbdemo .stage.ar .mapBtns,.bbdemo .stage.ar .rzBox,.bbdemo .stage.ar .boardTag,.bbdemo .stage.ar .mapHint,.bbdemo .stage.ar #outWrap{display:none}
 .bbdemo .seg button.arOn{background:var(--gold);color:#231a00}
 .bbdemo .arViewport{position:relative;border-radius:16px;overflow:hidden;background:#0A1830;box-shadow:var(--shadow);
         border:1px solid var(--line);aspect-ratio:4/3.6;touch-action:pan-y}
@@ -1409,6 +1417,10 @@
 .bbdemo .searchBox{flex:none}
 .bbdemo .scrollY{flex:1;min-height:0}
 .bbdemo .footNote{border-top:1px solid var(--line);background:var(--surface)}
+/* La vista AR nunca queda cortada contra la nota al pie: si en una pantalla
+   baja su contenido no cabe en el alto del escenario, el escenario se
+   desplaza por dentro y la vista se ve completa, en vez de recortarse. */
+.bbdemo .stage.ar{overflow-y:auto}
 @media (min-width:900px){
   .bbdemo #outWrap,.bbdemo #arWrap{max-width:min(880px, calc((var(--demoh,960px) - 505px) * 1.42))}
 }
@@ -3766,6 +3778,12 @@ function arRefreshBoard(){
   arRenderDestOptions(); arSyncDest(false);
 }
 function setAR(on){
+  /* La guía AR es una vista interior: si la vista Exterior estaba activa,
+     se sale de ella antes de abrir la AR. Sin esto, ambas vistas quedaban
+     apiladas en el escenario (Exterior arriba, AR abajo), la AR se
+     recortaba contra el borde inferior del demo y la nota al pie del demo
+     quedaba pegada sobre el corte, como si tapara la imagen del destino. */
+  if(on && view==="exterior") setView("interior");
   ARV.on=on;
   $("stage").classList.toggle("ar",on);
   $("arModeBtn").classList.toggle("arOn",on);
@@ -4590,19 +4608,89 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
           stopBob();
           bee.classList.remove('perched');
           bee.classList.remove('is-visible');
+          bee.classList.remove('facing-left');
           bee.style.opacity = '0';
           flying = false;
         }
+        // ---- Rutas de vuelo aleatorias --------------------------------------
+        // Cada vuelo entra por un borde o esquina de la pantalla y sale por
+        // otro borde o esquina distinto, como volaría una abeja real:
+        // izquierda→derecha, derecha→izquierda, arriba→abajo, abajo→arriba
+        // y diagonales de esquina a esquina. Bordes: 0 izq., 1 der., 2 arriba, 3 abajo.
+        var pendingExitEdge = -1;
+        function randomEdge(exclude) {
+          var e = Math.floor(Math.random() * 4);
+          while (e === exclude) { e = Math.floor(Math.random() * 4); }
+          return e;
+        }
+        function pointOnEdge(edge, w, h, size) {
+          var off = size + 30;
+          var alongX = Math.round(w * (0.02 + Math.random() * 0.9));
+          var alongY = Math.round(h * (0.02 + Math.random() * 0.9));
+          // Una de cada tres veces el punto cae cerca de una esquina, para
+          // que también haya vuelos de esquina a esquina.
+          if (Math.random() < 0.34) {
+            if (edge === 0 || edge === 1) {
+              alongY = Math.random() < 0.5
+                ? Math.round(h * Math.random() * 0.12)
+                : Math.round(h * (0.86 + Math.random() * 0.1));
+            } else {
+              alongX = Math.random() < 0.5
+                ? Math.round(w * Math.random() * 0.12)
+                : Math.round(w * (0.86 + Math.random() * 0.1));
+            }
+          }
+          if (edge === 0) return { x: -off, y: alongY };
+          if (edge === 1) return { x: w + 30, y: alongY };
+          if (edge === 2) return { x: alongX, y: -off };
+          return { x: alongX, y: h + 30 };
+        }
+        // Trayectoria con una curva suave en S, como el vuelo de un insecto:
+        // dos puntos intermedios desviados a lados opuestos de la recta.
+        function curvedFrames(from, to) {
+          var dx = to.x - from.x;
+          var dy = to.y - from.y;
+          var len = Math.sqrt(dx * dx + dy * dy) || 1;
+          var px = -dy / len;
+          var py = dx / len;
+          var amp = Math.max(18, Math.min(90, len * 0.14)) * (Math.random() < 0.5 ? -1 : 1);
+          var m1x = Math.round(from.x + dx * 0.33 + px * amp);
+          var m1y = Math.round(from.y + dy * 0.33 + py * amp);
+          var m2x = Math.round(from.x + dx * 0.68 - px * amp * 0.55 + (Math.random() * 14 - 7));
+          var m2y = Math.round(from.y + dy * 0.68 - py * amp * 0.55 + (Math.random() * 14 - 7));
+          return [
+            { transform: 'translate(' + from.x + 'px,' + from.y + 'px)', offset: 0 },
+            { transform: 'translate(' + m1x + 'px,' + m1y + 'px)', offset: 0.35 },
+            { transform: 'translate(' + m2x + 'px,' + m2y + 'px)', offset: 0.7 },
+            { transform: 'translate(' + to.x + 'px,' + to.y + 'px)', offset: 1 }
+          ];
+        }
+        // La abeja mira hacia donde vuela: si va hacia la izquierda, se voltea.
+        function setFacing(dx) {
+          if (dx < -12) { bee.classList.add('facing-left'); }
+          else if (dx > 12) { bee.classList.remove('facing-left'); }
+        }
         function flyAwayFrom(x, y) {
-          // Sale volando desde el punto indicado (al soltarla o tras posarse).
+          // Sale volando desde el punto indicado (al soltarla o tras posarse)
+          // hacia el borde de salida elegido para este vuelo; si no hay uno
+          // (al soltarla con el cursor), se elige un borde al azar.
           var w = window.innerWidth;
-          var exitY = Math.max(16, y - Math.round(30 + Math.random() * 80));
+          var h = window.innerHeight;
+          var size = bee.offsetWidth || 60;
+          var edge = pendingExitEdge >= 0 ? pendingExitEdge : randomEdge(-1);
+          pendingExitEdge = -1;
+          var dest = pointOnEdge(edge, w, h, size);
+          var ddx = dest.x - x;
+          var ddy = dest.y - y;
+          if (Math.sqrt(ddx * ddx + ddy * ddy) < 240) {
+            edge = randomEdge(edge);
+            dest = pointOnEdge(edge, w, h, size);
+          }
+          setFacing(dest.x - x);
           startSparks();
           startBob();
-          var exit = bee.animate([
-            { transform: 'translate(' + x + 'px,' + y + 'px)' },
-            { transform: 'translate(' + (w + 60) + 'px,' + exitY + 'px)' }
-          ], { duration: 1150, easing: 'cubic-bezier(.5,.05,.7,.4)', fill: 'forwards' });
+          var exit = bee.animate(curvedFrames({ x: x, y: y }, dest),
+            { duration: 1150, easing: 'cubic-bezier(.5,.05,.7,.4)', fill: 'forwards' });
           if (exit) { flightAnims.push(exit); exit.onfinish = finishAll; }
           else { finishAll(); }
           later(finishAll, 2200);
@@ -4616,7 +4704,11 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
             if (r.left < -30 || r.left > w - 16) return;
             var s = document.createElement('span');
             s.className = 'bee-spark';
-            s.style.left = (r.left + 2 + Math.random() * 10) + 'px';
+            // Las chispas nacen en la cola: a la izquierda, o a la derecha
+            // cuando la abeja vuela hacia la izquierda.
+            s.style.left = (bee.classList.contains('facing-left')
+              ? r.right - 12 - Math.random() * 10
+              : r.left + 2 + Math.random() * 10) + 'px';
             s.style.top = (r.top + r.height * 0.52 + (Math.random() * 12 - 6)) + 'px';
             document.body.appendChild(s);
             var a = s.animate([
@@ -4652,19 +4744,25 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
           // Punto aleatorio donde la abeja se posa un momento, como una abeja real en la pantalla.
           var perchX = Math.round(w * (0.14 + Math.random() * 0.6));
           var perchY = Math.round(h * (0.15 + Math.random() * 0.52));
+          // Entra por un borde o esquina al azar y saldrá por otro distinto:
+          // cada vuelo recorre la pantalla de una forma diferente.
+          var startEdge = randomEdge(-1);
+          var endEdge = randomEdge(startEdge);
+          pendingExitEdge = endEdge;
+          var start = pointOnEdge(startEdge, w, h, size);
 
           bee.classList.remove('perched');
           bee.style.opacity = '1';
           bee.classList.add('is-visible');
           showHintOnce();
-          beeX = -size - 90; beeY = perchY + 30;
+          beeX = start.x; beeY = start.y;
+          setBeePos(start.x, start.y);
+          setFacing(perchX - start.x);
           startSparks();
           startBob();
 
-          var entry = bee.animate([
-            { transform: 'translate(' + (-size - 90) + 'px,' + (perchY + 30) + 'px)' },
-            { transform: 'translate(' + perchX + 'px,' + perchY + 'px)' }
-          ], { duration: 1750, easing: 'cubic-bezier(.25,.6,.35,1)', fill: 'forwards' });
+          var entry = bee.animate(curvedFrames(start, { x: perchX, y: perchY }),
+            { duration: 1750, easing: 'cubic-bezier(.25,.6,.35,1)', fill: 'forwards' });
 
           if (!entry) { finishAll(); return; }
           flightAnims.push(entry);
@@ -4741,7 +4839,7 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
         if (!reduced) {
           setTimeout(function autoBee() {
             flyBee();
-            setTimeout(autoBee, 95000 + Math.random() * 55000);
+            setTimeout(autoBee, 35000 + Math.random() * 10000);
           }, 4000);
         }
       })();
