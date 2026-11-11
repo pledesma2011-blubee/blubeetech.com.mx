@@ -377,6 +377,20 @@
         justify-content:center; font-size:14px; font-weight:700; color:var(--ink-3); text-align:center;
       }
       .video-meta strong{color:var(--ink-2)}
+      /* Sección Video (#video): la misma corrección que en Viñedos — al
+         abrir la vista, el video se ve COMPLETO en la primera pantalla,
+         sin scroll: el párrafo introductorio corre a todo el ancho útil
+         (menos renglones), hay menos aire antes del video y el marco 16:9
+         lleva un ancho máximo pensado para la altura de una laptop, con
+         topes extra en pantallas más bajas. */
+      #video .sec-head{max-width:1120px; margin-bottom:30px}
+      #video .video-frame{max-width:840px}
+      @media (max-height:860px){
+        #video .video-frame{max-width:760px}
+      }
+      @media (max-height:740px){
+        #video .video-frame{max-width:660px}
+      }
 
       /* Ejemplos de uso */
       .ej-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:22px}
