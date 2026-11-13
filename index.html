@@ -507,20 +507,32 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
          sombras suaves y profundas, y el fondo de circuitos con profundidad
          de campo (leve desenfoque y viñeta) para que no compita con ella.
          El diseño de la abeja no cambia: solo su presentación en capas. */
-      .about-photo.bee-stage{overflow:visible; background:none}
+      .about-photo.bee-stage{overflow:visible; background:none; box-shadow:none}
       /* El panel (el "marco" de la foto): SOLO el resplandor dorado detrás de
          la abeja, una viñeta suave y la sombra de apoyo de la parte baja.
          Sin foto de circuitos propia: el único fondo de circuitos es el de
          la sección (#nosotros::before), así las líneas son continuas detrás
          y alrededor de la abeja, sin un rectángulo pegado encima ni un bloque
-         oscuro tras el ala. La sombra exterior del panel la pinta el
-         box-shadow que .about-photo ya trae. */
+         oscuro tras el ala. Sin box-shadow rectangular (quitado en
+         .bee-stage) y con los bordes difuminados por la máscara de abajo:
+         el panel ya no se lee como un cuadro pegado. */
       .about-photo.bee-stage::before{
         content:""; position:absolute; inset:0; z-index:0; border-radius:26px; pointer-events:none;
         background:
           radial-gradient(58% 52% at 58% 42%, rgba(255,190,40,.15), rgba(255,190,40,0) 70%),
           radial-gradient(118% 96% at 50% 40%, rgba(1,5,13,0) 58%, rgba(1,5,13,.34) 100%),
           linear-gradient(180deg, rgba(1,5,13,0) 62%, rgba(1,5,13,.38) 100%);
+        /* Bordes DIFUMINADOS (petición de Peter): el panel ya no termina en
+           un rectángulo marcado que manche el blanco. La máscara cruza un
+           desvanecido vertical con uno horizontal (intersección de ambas),
+           así los cuatro lados —y las esquinas— se apagan poco a poco y el
+           panel se funde con el azul marino de la izquierda y con el fondo
+           claro de la columna de texto. La abeja no se toca: misma imagen,
+           mismo tamaño y misma posición; solo se suaviza su cuadro. */
+        -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 10%, #000 86%, transparent 100%), linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+        -webkit-mask-composite:source-in;
+        mask-image:linear-gradient(180deg, transparent 0, #000 10%, #000 86%, transparent 100%), linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+        mask-composite:intersect;
       }
       /* La estela dorada, como la del cierre de los videos: nace detrás del
          abdomen y se desvanece hacia la izquierda, saliéndose del marco. */
