@@ -535,13 +535,21 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
          Lo que cambia es cómo se presenta el panel (petición de Peter):
          - El <figure> se ensancha 110 px hacia la derecha, por encima del
            hueco entre columnas, para que la cabeza tenga a dónde salir.
-         - El borde derecho de la foto se FUNDE con un degradado amplio
-           (opaco hasta el 83% y transparente al 95% del ancho): cruza la
-           línea vertical ya casi disuelto y termina de desvanecerse
-           sobre el blanco, sin ningún corte ni línea azul dura. Arriba,
-           abajo y a la izquierda lleva fundidos cortos contra el MISMO
-           azul marino del fondo de la sección, así que no se nota
-           ninguna costura.
+         - El borde derecho de la foto se FUNDE con un degradado que
+           termina EXACTAMENTE en la línea vertical (opaco hasta el 76%
+           y transparente al 83.5% del ancho, que es donde cae la línea
+           de ::after): la foto NO cruza la línea ni un píxel, así que el
+           azul marino de la sección dibuja una sola línea vertical
+           recta de arriba a abajo, sin el rectángulo que antes
+           sobresalía en la franja de la foto al desvanecerse esta más
+           allá de la línea, sobre el blanco. El fundido de la foto
+           coincide en posición y ancho con el del fondo de la sección
+           (::before), así que dentro y fuera de la franja de la foto el
+           borde se ve idéntico. Arriba, abajo y a la izquierda lleva
+           fundidos cortos contra el MISMO azul marino del fondo de la
+           sección, así que no se nota ninguna costura. Lo único que
+           cruza la línea es la cabeza de la abeja (capa transparente
+           .bee-head-layer), sin rectángulo de fondo detrás.
          - El panel bajó un poco y la foto se encuadró más alta (480 px,
            object-position 50% 28%) para que la punta del ala superior se
            vea COMPLETA, sin cortarse ni pegarse al logotipo del
@@ -554,9 +562,9 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
         position:relative; z-index:2; display:block; width:100%; height:480px;
         object-fit:cover; object-position:50% 28%; box-sizing:border-box;
         padding:0; border-radius:0;
-        -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 6%, #000 94%, transparent 100%), linear-gradient(90deg, transparent 0, #000 3%, #000 83%, transparent 95%);
+        -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 6%, #000 94%, transparent 100%), linear-gradient(90deg, transparent 0, #000 3%, #000 76%, transparent 83.5%);
         -webkit-mask-composite:source-in;
-        mask-image:linear-gradient(180deg, transparent 0, #000 6%, #000 94%, transparent 100%), linear-gradient(90deg, transparent 0, #000 3%, #000 83%, transparent 95%);
+        mask-image:linear-gradient(180deg, transparent 0, #000 6%, #000 94%, transparent 100%), linear-gradient(90deg, transparent 0, #000 3%, #000 76%, transparent 83.5%);
         mask-composite:intersect;
       }
       /* La cabeza que cruza la línea: un recorte SOLO de la cabeza y las
@@ -1128,9 +1136,11 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
       }
 
       /* Enjambre del logotipo: abejas pequeñas que salen del logotipo del
-         encabezado y cruzan la pantalla con su estela dorada. La capa y
-         las abejas nunca reciben clics: vuelan por encima del contenido
-         sin estorbar la navegación y se desvanecen solas. */
+         encabezado y cruzan la pantalla. SIN estela, SIN chispas y SIN
+         puntitos (corrección de Peter): solo las abejas volando y
+         desapareciendo, sin dejar nada detrás. La capa y las abejas
+         nunca reciben clics: vuelan por encima del contenido sin
+         estorbar la navegación y se desvanecen solas. */
       .swarm-layer{position:fixed; inset:0; z-index:90; pointer-events:none; overflow:hidden}
       .swarm-bee{position:absolute; left:0; top:0; pointer-events:none; opacity:0; will-change:transform,opacity}
       .swarm-bee .swarm-bob{position:relative}
@@ -1139,21 +1149,6 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
         filter:drop-shadow(0 2px 5px rgba(6,26,48,.45)) drop-shadow(0 0 4px rgba(255,200,31,.18));
       }
       .swarm-bee.facing-left img{transform:scaleX(-1)}
-      .swarm-trail{
-        position:absolute; top:52%; right:74%; width:64px; height:8px; transform:translateY(-50%);
-        background:linear-gradient(90deg, rgba(255,200,31,0), rgba(255,200,31,.45), rgba(255,226,120,.65));
-        border-radius:999px; filter:blur(4px);
-        clip-path:polygon(0 50%, 100% 6%, 100% 94%); opacity:.55;
-      }
-      .swarm-bee.facing-left .swarm-trail{
-        right:auto; left:74%;
-        background:linear-gradient(270deg, rgba(255,200,31,0), rgba(255,200,31,.45), rgba(255,226,120,.65));
-        clip-path:polygon(100% 50%, 0 6%, 0 94%);
-      }
-      .swarm-spark{
-        position:absolute; width:4px; height:4px; border-radius:50%;
-        background:#ffd94d; pointer-events:none; box-shadow:0 0 5px 1px rgba(255,200,31,.4);
-      }
       @media (prefers-reduced-motion: reduce){
         .swarm-layer{display:none}
       }
@@ -5681,9 +5676,12 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
     <script>
       // Enjambre del logotipo: el logotipo del encabezado ya no navega
       // (la casita es el botón de Inicio). Cada clic o toque sobre él
-      // suelta una abeja mascota que cruza la pantalla con su estela
-      // dorada y se desvanece; al llegar a 10 clics sale el enjambre
-      // completo. Sin sonido y sin ningún texto: se descubre solo.
+      // suelta una abeja mascota que cruza la pantalla y se desvanece;
+      // al llegar a 10 clics sale el enjambre completo. SIN estela
+      // dorada, SIN chispas y SIN puntitos (corrección de Peter): ni la
+      // abeja de un solo clic ni el enjambre dejan nada detrás, solo
+      // las abejas volando y desapareciendo. Sin sonido y sin ningún
+      // texto: se descubre solo.
       (function () {
         var logo = document.getElementById('brandLogo');
         if (!logo) return;
@@ -5708,35 +5706,7 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
 
         function rand(a, b) { return a + Math.random() * (b - a); }
 
-        // ---- Chispas doradas de la estela -------------------------------
-        var sparkTimer = null;
-        function startSparks() {
-          if (sparkTimer) return;
-          sparkTimer = setInterval(function () {
-            for (var i = 0; i < active.length; i++) {
-              if (Math.random() < 0.35) continue;
-              var el = active[i];
-              var r = el.getBoundingClientRect();
-              if (r.right < -20 || r.left > window.innerWidth + 20 || r.bottom < -20 || r.top > window.innerHeight + 20) continue;
-              var s = document.createElement('span');
-              s.className = 'swarm-spark';
-              s.style.left = (el.classList.contains('facing-left')
-                ? r.right - 10 - Math.random() * 8
-                : r.left + 2 + Math.random() * 8) + 'px';
-              s.style.top = (r.top + r.height * 0.52 + (Math.random() * 10 - 5)) + 'px';
-              layer.appendChild(s);
-              var a = s.animate([
-                { opacity: 0.8, transform: 'scale(1)' },
-                { opacity: 0, transform: 'scale(0.3) translateX(-10px)' }
-              ], { duration: 650, easing: 'ease-out' });
-              if (a) { a.onfinish = function () { s.remove(); }; }
-              else { setTimeout(function () { s.remove(); }, 650); }
-            }
-          }, 140);
-        }
-        function stopSparksIfIdle() {
-          if (!active.length && sparkTimer) { clearInterval(sparkTimer); sparkTimer = null; }
-        }
+        // Sin chispas ni estela: las abejas no dejan ningún rastro.
 
         // ---- Trayectoria con curva suave en S, como la abeja voladora ---
         function curvedFrames(from, to) {
@@ -5786,7 +5756,6 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
             el.getAnimations().forEach(function (a) { try { a.cancel(); } catch (e) {} });
           }
           el.remove();
-          stopSparksIfIdle();
         }
 
         function spawnBee(isSwarm) {
@@ -5805,19 +5774,15 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
           el.style.transform = 'translate(' + from.x + 'px,' + from.y + 'px)';
           var bob = document.createElement('div');
           bob.className = 'swarm-bob';
-          var trail = document.createElement('span');
-          trail.className = 'swarm-trail';
           var img = document.createElement('img');
           img.src = BEE_SRC;
           img.alt = '';
           img.setAttribute('draggable', 'false');
           img.setAttribute('aria-hidden', 'true');
-          bob.appendChild(trail);
           bob.appendChild(img);
           el.appendChild(bob);
           layer.appendChild(el);
           active.push(el);
-          startSparks();
 
           var bobAnim = null;
           if (bob.animate) {
