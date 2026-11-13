@@ -534,15 +534,6 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
         mask-image:linear-gradient(180deg, transparent 0, #000 10%, #000 86%, transparent 100%), linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
         mask-composite:intersect;
       }
-      /* La estela dorada, como la del cierre de los videos: nace detrás del
-         abdomen y se desvanece hacia la izquierda, saliéndose del marco. */
-      .about-photo.bee-stage::after{
-        content:""; position:absolute; z-index:1; left:-7%; bottom:14%; width:72%; height:58px;
-        border-radius:999px; pointer-events:none;
-        background:linear-gradient(90deg, rgba(255,200,31,0) 0%, rgba(255,200,31,.30) 42%, rgba(255,214,84,.58) 78%, rgba(255,238,170,.95) 100%);
-        filter:blur(5px);
-        transform:rotate(-7deg); transform-origin:right center;
-      }
       /* La abeja, por encima de todo y fuera del marco: más grande que su
          foto, desplazada a la derecha y un poco más arriba que antes —el
          panel ya no se centra contra la columna de texto, que es más alta,
@@ -562,7 +553,6 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
         /* En celular la salida del marco es más discreta, para que la cabeza
            no empuje el ancho de la pantalla. */
         .about-photo.bee-stage img{transform:translate(1.5%, -3%) scale(1.08) rotate(-1.2deg)}
-        .about-photo.bee-stage::after{left:-3%; bottom:11%; width:64%; height:40px}
       }
       /* Nosotros · UN SOLO fondo de circuitos azul oscuro para toda la mitad
          izquierda de la sección: cubre el "aire" alrededor de la abeja y
