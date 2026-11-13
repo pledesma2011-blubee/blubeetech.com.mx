@@ -216,7 +216,9 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
         display:inline-flex; align-items:center; gap:7px;
         color:#fff; background:var(--navy-800); border:1.5px solid rgba(169,205,243,.30);
         text-decoration:none; font-weight:700; font-size:14px; padding:9px 15px; border-radius:999px;
-        transition:background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+        /* Sin transición: el resaltado al pasar el cursor se activa y se
+           quita de inmediato, sin retraso al mover el cursor rápido. */
+        transition:none;
       }
       .mobile-nav a svg{width:16px; height:16px; flex:none}
       .mobile-nav a:hover{background:var(--navy-700); border-color:rgba(169,205,243,.45); color:#fff}
@@ -898,7 +900,7 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
       .social-btn svg{width:22px; height:22px}
       .social-btn:hover{background:#008AFF; border-color:#008AFF; color:#fff}
       .social-btn[href*="facebook.com"]:hover{background:#1877F2; border-color:#1877F2; color:#fff}
-      .social-btn[href*="instagram.com"]:hover{background:linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); border-color:#cc2366; color:#fff}
+      .social-btn[href*="instagram.com"]:hover{background:linear-gradient(180deg, #E1306C 0%, #FD1D1D 40%, #F77737 70%, #FCAF45 100%); border-color:#E1306C; color:#fff}
       .social-btn[href*="youtube.com"]:hover{background:#FF0000; border-color:#FF0000; color:#fff}
       .social-btn:focus-visible{outline:2px solid var(--bee); outline-offset:3px}
       .foot-social{margin-top:22px}
@@ -4680,6 +4682,33 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
             burger.setAttribute('aria-expanded', 'false');
           }
         });
+        // Menú al pasar el cursor (2026-11-12, Peter): en equipos con ratón,
+        // el menú se despliega al pasar sobre el botón "☰ Menú" (ícono o
+        // palabra), sin dar clic. Se queda abierto mientras el cursor esté
+        // sobre el botón o sobre el menú desplegado, y se cierra al salir de
+        // ambos con una breve espera (250 ms) para que no se cierre al mover
+        // el cursor del botón al menú. En pantallas táctiles (sin hover) se
+        // conserva el comportamiento de toque de siempre.
+        if (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+          var menuHoverTimer = null;
+          function menuHoverOpen() {
+            if (menuHoverTimer) { clearTimeout(menuHoverTimer); menuHoverTimer = null; }
+            mobileNav.classList.add('open');
+            burger.setAttribute('aria-expanded', 'true');
+          }
+          function menuHoverClose() {
+            if (menuHoverTimer) clearTimeout(menuHoverTimer);
+            menuHoverTimer = setTimeout(function () {
+              mobileNav.classList.remove('open');
+              burger.setAttribute('aria-expanded', 'false');
+              menuHoverTimer = null;
+            }, 250);
+          }
+          burger.addEventListener('mouseenter', menuHoverOpen);
+          burger.addEventListener('mouseleave', menuHoverClose);
+          mobileNav.addEventListener('mouseenter', menuHoverOpen);
+          mobileNav.addEventListener('mouseleave', menuHoverClose);
+        }
 
         // Reveal on scroll
         var revealEls = document.querySelectorAll('.reveal');
