@@ -436,7 +436,7 @@
               <button class="btn" id="btn-testmode">Modo prueba</button>
             </div>
             <div id="test-pad" class="hidden">
-              <p class="small muted" style="margin:12px 0 0;">Modo prueba: camina con las flechas (cada toque ≈ 11 m). Sirve para enseñar el juego sin moverte del lugar.</p>
+              <p class="small muted" style="margin:12px 0 0;">Modo prueba: camina con las flechas (cada toque ≈ 2 m en Modo Casa, ≈ 11 m en Exterior). Sirve para enseñar el juego sin moverte del lugar.</p>
               <div class="pad">
                 <span></span><button data-move="n" aria-label="Avanzar al norte">↑</button><span></span>
                 <button data-move="w" aria-label="Mover al oeste">←</button>
@@ -450,6 +450,14 @@
 
           <div class="card">
             <h3 style="font-size:1.15rem;">Radar de cercanía</h3>
+            <div class="field" style="margin-top:10px;">
+              <span class="flabel">¿Dónde estás probando?</span>
+              <div class="seg" id="range-seg">
+                <button type="button" id="range-casa" class="active">🏠 En casa · hasta 12 m</button>
+                <button type="button" id="range-exterior">🌳 Exterior · hasta 120 m</button>
+              </div>
+              <p class="small muted" id="range-hint" style="margin:6px 0 0;">Modo Casa: las abejas se esconden a 4, 7 y 10 m de ti, con zona de captura chica (5 m). Ideal para sala, comedor y cocina. Ojo: adentro el GPS tiene un error de ±5 a 10 m, así que los metros bailan un poco — camina despacio y guía­té por la flecha y por si te acercas o te alejas.</p>
+            </div>
             <div class="radar-wrap">
               <div class="radar" id="radar">
                 <div class="sweep"></div>
@@ -515,7 +523,7 @@
             <button class="btn btn-gold btn-block hidden" id="btn-catch" style="font-size:1.2rem;">🖐️ ¡Atraparla!</button>
           </div>
         </div>
-        <p class="muted small" style="margin-top:10px;">Al abrir la cámara <b>no verás nada todavía</b>: gira el teléfono buscándola y sigue la flecha. Cuando apuntes hacia su escondite, <b>aparecerá volando en ese punto</b>: tócala directamente para atraparla. Si tocas fuera de ella, se escapa a otro rincón. Si la cámara no se abre, no pasa nada: se ve igual sobre el fondo del juego, y también puedes usar el botón «¡Atraparla!».</p>
+        <p class="muted small" style="margin-top:10px;"><b>La cámara abre limpia y la abeja NO está adentro.</b> Primero tienes que <b>llegar caminando</b> hasta su escondite: mientras estés lejos, la cámara solo te muestra la distancia que falta y la flecha, y la abeja no aparece por más que gires el teléfono. Solo cuando ya estés <b>sobre el punto</b> (a 5 m o menos en Modo Casa) y apuntes la cámara hacia donde está escondida, <b>aparece volando en ese punto</b>: tócala directamente para atraparla.</p>
       </section>
 
       <!-- ============ CELEBRACIÓN ============ -->
@@ -615,6 +623,14 @@
     var headingDeg = null;                        // hacia dónde apunta el teléfono (brújula)
     var insideZoneId = null;                      // zona en la que estoy parado
     var lastNearestDist = null;
+    var LS_RANGE = "atrapa_rango_v1";
+    var rangeMode = loadJSON(LS_RANGE, "casa");   // "casa" | "exterior" — casa por defecto: pruebas en 10-12 m
+    if (rangeMode !== "casa" && rangeMode !== "exterior") rangeMode = "casa";
+    function isCasa() { return rangeMode === "casa"; }
+    /* Radio REAL de captura: en casa nunca más de 5 m, aunque la zona se haya
+       creado con radio 20. Así no se puede atrapar desde la otra punta. */
+    function catchRadius(z) { return isCasa() ? Math.min(z.radius || 15, 5) : (z.radius || 20); }
+    function buzzRange() { return isCasa() ? 18 : 300; }
 
     function zonesOf(g) { return zones.filter(function (z) { return z.game === g; }); }
     function foundCount(g) {
@@ -679,55 +695,53 @@
         if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
         return this.ctx;
       },
-      /* Zumbido de abeja realista: el sonido de una abeja es un tono grave
-         (~185 Hz, el batir de sus alas) con el volumen pulsando al ritmo del
-         aleteo (~24 veces por segundo) y el tono vagando un poco, nunca fijo.
-         proximity 0..1: lejos suena suave y grave; cerca, más fuerte y vivo. */
+      /* Zumbido SUAVE (v3): nada de sierra. Dos senos + un triángulo muy
+         filtrado, volumen bajo y pulsación lenta. Suena a abeja lejana
+         detrás de una pared, no a motor. Si al usuario no le gusta,
+         puede silenciarlo con el botón 🔊 y el juego sigue igual.
+         proximity 0..1: lejos casi no se oye; cerca sube un poco. */
       buzzStart: function () {
         if (this.muted || !this.ensure()) return;
         if (this.buzzOsc) return;
         var ctx = this.ctx;
-        var base = 185;
-        var o1 = ctx.createOscillator(); o1.type = "sawtooth"; o1.frequency.value = base;
-        var o2 = ctx.createOscillator(); o2.type = "sawtooth"; o2.frequency.value = base * 1.007;
-        var sub = ctx.createOscillator(); sub.type = "triangle"; sub.frequency.value = base / 2;
-        var subGain = ctx.createGain(); subGain.gain.value = 0.45;
+        var base = 196;
+        var o1 = ctx.createOscillator(); o1.type = "sine"; o1.frequency.value = base;
+        var o2 = ctx.createOscillator(); o2.type = "triangle"; o2.frequency.value = base * 2;
+        var o2g = ctx.createGain(); o2g.gain.value = 0.12;
         var filter = ctx.createBiquadFilter();
-        filter.type = "lowpass"; filter.frequency.value = 620; filter.Q.value = 2.5;
+        filter.type = "lowpass"; filter.frequency.value = 420; filter.Q.value = 0.7;
         this.buzzGain = ctx.createGain(); this.buzzGain.gain.value = 0.0;
         this.buzzLFO = ctx.createOscillator();
-        this.buzzLFO.type = "sine"; this.buzzLFO.frequency.value = 24;
+        this.buzzLFO.type = "sine"; this.buzzLFO.frequency.value = 13;
         this.buzzLFOGain = ctx.createGain(); this.buzzLFOGain.gain.value = 0.0;
         this.buzzLFO.connect(this.buzzLFOGain);
         this.buzzLFOGain.connect(this.buzzGain.gain);
-        o1.connect(filter); o2.connect(filter);
-        sub.connect(subGain); subGain.connect(filter);
+        o1.connect(filter); o2.connect(o2g); o2g.connect(filter);
         filter.connect(this.buzzGain); this.buzzGain.connect(ctx.destination);
-        o1.start(); o2.start(); sub.start(); this.buzzLFO.start();
-        this.buzzOsc = o1; this.buzzOsc._o2 = o2; this.buzzOsc._sub = sub;
+        o1.start(); o2.start(); this.buzzLFO.start();
+        this.buzzOsc = o1; this.buzzOsc._o2 = o2; this.buzzOsc._sub = null;
         this._buzzFreq = base;
         var self = this;
         this.buzzTimer = setInterval(function () {
           if (!self.buzzOsc || !self.ctx) return;
-          var wob = (Math.random() - 0.5) * 9;   // deriva natural del tono
+          var wob = (Math.random() - 0.5) * 5;
           var t = self.ctx.currentTime, f = (self._buzzFreq || base) + wob;
-          self.buzzOsc.frequency.setTargetAtTime(f, t, 0.18);
-          if (self.buzzOsc._o2) self.buzzOsc._o2.frequency.setTargetAtTime(f * 1.007, t, 0.18);
-        }, 320);
+          self.buzzOsc.frequency.setTargetAtTime(f, t, 0.25);
+          if (self.buzzOsc._o2) self.buzzOsc._o2.frequency.setTargetAtTime(f * 2, t, 0.25);
+        }, 420);
       },
       buzzSet: function (proximity) {
         if (!this.buzzOsc || !this.ctx) return;
         var t = this.ctx.currentTime;
-        var freq = 175 + proximity * 95;               // se agudiza un poco al acercarse
-        var rate = 22 + proximity * 9;                 // el aleteo se acelera
-        var vol = 0.02 + proximity * 0.085;            // y suena más fuerte
+        var freq = 185 + proximity * 45;
+        var rate = 11 + proximity * 6;
+        var vol = 0.006 + proximity * 0.028;  // muy bajito a propósito
         this._buzzFreq = freq;
-        this.buzzOsc.frequency.setTargetAtTime(freq, t, 0.15);
-        if (this.buzzOsc._o2) this.buzzOsc._o2.frequency.setTargetAtTime(freq * 1.007, t, 0.15);
-        if (this.buzzOsc._sub) this.buzzOsc._sub.frequency.setTargetAtTime(freq / 2, t, 0.15);
-        this.buzzLFO.frequency.setTargetAtTime(rate, t, 0.15);
-        this.buzzGain.gain.setTargetAtTime(vol, t, 0.15);
-        this.buzzLFOGain.gain.setTargetAtTime(vol * 0.55, t, 0.15);
+        this.buzzOsc.frequency.setTargetAtTime(freq, t, 0.2);
+        if (this.buzzOsc._o2) this.buzzOsc._o2.frequency.setTargetAtTime(freq * 2, t, 0.2);
+        this.buzzLFO.frequency.setTargetAtTime(rate, t, 0.2);
+        this.buzzGain.gain.setTargetAtTime(vol, t, 0.2);
+        this.buzzLFOGain.gain.setTargetAtTime(vol * 0.35, t, 0.2);
       },
       buzzStop: function () {
         if (this.buzzTimer) { clearInterval(this.buzzTimer); this.buzzTimer = null; }
@@ -744,27 +758,17 @@
         if (this.muted || !this.ensure()) return;
         var ctx = this.ctx, t = ctx.currentTime + when;
         var o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = type || "square"; o.frequency.value = freq;
+        o.type = type || "sine"; o.frequency.value = freq;
         g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(vol || 0.12, t + 0.012);
+        g.gain.linearRampToValueAtTime(vol || 0.08, t + 0.02);
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         o.connect(g); g.connect(ctx.destination);
         o.start(t); o.stop(t + dur + 0.05);
       },
-      catchBee: function () {   /* efecto tecnológico ascendente */
-        this.blip(660, 0, 0.12, "square", 0.10);
-        this.blip(880, 0.09, 0.12, "square", 0.10);
-        this.blip(1320, 0.18, 0.16, "square", 0.11);
-        this.blip(1760, 0.28, 0.3, "sine", 0.13);
-        if (!this.ensure()) return;
-        var ctx = this.ctx, t = ctx.currentTime + 0.05;
-        var o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = "sawtooth";
-        o.frequency.setValueAtTime(300, t);
-        o.frequency.exponentialRampToValueAtTime(2400, t + 0.3);
-        g.gain.setValueAtTime(0.05, t);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
-        o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.35);
+      catchBee: function () {   /* campanita suave ascendente, sin sierra */
+        this.blip(523, 0, 0.22, "sine", 0.09);
+        this.blip(659, 0.10, 0.22, "sine", 0.09);
+        this.blip(784, 0.20, 0.35, "sine", 0.10);
       },
       catchBottle: function () {  /* tintineo grave y elegante */
         this.blip(392, 0, 0.5, "sine", 0.14);
@@ -772,7 +776,7 @@
         this.blip(659, 0.24, 0.65, "sine", 0.13);
         this.blip(784, 0.38, 0.8, "sine", 0.11);
       },
-      errorBuzz: function () { this.blip(160, 0, 0.22, "sawtooth", 0.10); }
+      errorBuzz: function () { this.blip(220, 0, 0.18, "sine", 0.06); this.blip(196, 0.16, 0.22, "sine", 0.06); }
     };
     $("sound-toggle").addEventListener("click", function () {
       AudioSys.muted = !AudioSys.muted;
@@ -1026,6 +1030,15 @@ function switchTab(name) {
 }
 
 /* ---------------- GPS: botones ---------------- */
+/* Selector Casa / Exterior */
+function setRangeMode(m) {
+  rangeMode = m; saveJSON(LS_RANGE, m); refreshRangeUI(); updateHunt();
+  toast(m === "casa" ? "🏠 Modo Casa: escondites a 4, 7 y 10 m" : "🌳 Modo Exterior: escondites lejos, para espacios abiertos");
+}
+var rc = $("range-casa"), re = $("range-exterior");
+if (rc) rc.addEventListener("click", function () { setRangeMode("casa"); });
+if (re) re.addEventListener("click", function () { setRangeMode("exterior"); });
+refreshRangeUI();
 $("btn-gps").addEventListener("click", function () { requestLocation(false); });
 $("btn-gps-retry").addEventListener("click", function () { requestLocation(false); });
 $("btn-refresh-pos").addEventListener("click", function () {
@@ -1034,31 +1047,32 @@ $("btn-refresh-pos").addEventListener("click", function () {
     .then(function () { toast("📍 Posición actualizada"); })
     .catch(function () {});
 });
-/* Cacería rápida: 3 escondites alrededor del jugador, sin abrir el Organizador */
+/* Cacería rápida: 3 escondites alrededor del jugador, sin abrir el Organizador.
+   En Modo Casa van a 4, 7 y 10 m (el tamaño de una planta baja); en Exterior, lejos. */
 function quickScatter() {
   AudioSys.ensure();
   var make = function (p) {
+    var spots = isCasa() ? [[4, 1], [-3, 6], [7, -5]] : [[35, 15], [-25, 60], [85, -40]];
+    var rad = isCasa() ? 5 : 20;
     if (game === "bees") {
       var types = ["comun", "dorada", "reina"];
-      var spots = [[35, 15], [-25, 60], [85, -40]];
       types.forEach(function (t, i) {
         var c = offsetPos(p, spots[i][0], spots[i][1]);
-        zones.push({ id: uid(), game: "bees", beeType: t, name: BEE_TYPES[t].name,
-                     lat: c.lat, lng: c.lng, radius: 20, pts: BEE_TYPES[t].pts, when: Date.now() });
+        zones.push({ id: uid(), game: "bees", beeType: t, name: BEE_TYPES[t].name + (isCasa() ? " · casa" : ""),
+                     lat: c.lat, lng: c.lng, radius: rad, pts: BEE_TYPES[t].pts, when: Date.now() });
       });
     } else {
       var labels = ["Tinto Reserva", "Blanco", "Rosado"];
-      var spotsB = [[35, 15], [-25, 60], [85, -40]];
       labels.forEach(function (lab, i) {
-        var c = offsetPos(p, spotsB[i][0], spotsB[i][1]);
+        var c = offsetPos(p, spots[i][0], spots[i][1]);
         zones.push({ id: uid(), game: "bottles", name: "Botella · " + lab, label: lab,
                      color: BOTTLE_COLORS[(zonesOf("bottles").length + i) % BOTTLE_COLORS.length],
-                     lat: c.lat, lng: c.lng, radius: 20, pts: 100, when: Date.now() });
+                     lat: c.lat, lng: c.lng, radius: rad, pts: 100, when: Date.now() });
       });
     }
     saveJSON(LS_ZONES, zones);
     renderScores(); updateHunt(); renderCollection();
-    toast("✅ 3 escondites creados a tu alrededor. ¡A caminar!");
+    toast(isCasa() ? "✅ 3 escondites en tu casa: a 4, 7 y 10 m de ti. ¡A caminar!" : "✅ 3 escondites creados a tu alrededor. ¡A caminar!");
   };
   if (myPos && !testMode) make(myPos);
   else requestLocation(false).then(make).catch(function () {
@@ -1081,7 +1095,7 @@ $("btn-testmode").addEventListener("click", function () {
 document.querySelectorAll("[data-move]").forEach(function (b) {
   b.addEventListener("click", function () {
     if (!myPos) return;
-    var d = b.getAttribute("data-move"), step = 11;
+    var d = b.getAttribute("data-move"), step = isCasa() ? 2 : 11;
     if (d === "here") {
       var near = nearestZone();
       if (near) { myPos = { lat: near.zone.lat, lng: near.zone.lng }; }
@@ -1104,12 +1118,26 @@ function nearestZone() {
   return best;
 }
 function tempLabel(d, radius) {
-  if (d <= radius) return { t: "¡Está aquí mismo!", cls: "boiling" };
+  if (d <= radius) return { t: "¡Está aquí mismo! Abre la cámara", cls: "boiling" };
+  if (isCasa()) {
+    if (d <= radius + 3) return { t: "🔥 Hirviendo — a unos pasos", cls: "boiling" };
+    if (d <= 12) return { t: "🌡️ Caliente — sigue la flecha", cls: "hot" };
+    if (d <= 25) return { t: "Tibio… camina un poco más", cls: "" };
+    return { t: "Fuera de tu casa — esa está lejos, usa «Esconder 3 cerca de mí»", cls: "" };
+  }
   if (d <= radius + 15) return { t: "🔥 Hirviendo", cls: "boiling" };
   if (d <= 60) return { t: "🌡️ Caliente", cls: "hot" };
   if (d <= 150) return { t: "Tibio…", cls: "" };
   if (d <= 400) return { t: "Frío", cls: "" };
   return { t: "🧊 Muy frío", cls: "" };
+}
+function refreshRangeUI() {
+  var c = $("range-casa"), e = $("range-exterior"), h = $("range-hint");
+  if (c) c.classList.toggle("active", isCasa());
+  if (e) e.classList.toggle("active", !isCasa());
+  if (h) h.textContent = isCasa()
+    ? "Modo Casa: las abejas se esconden a 4, 7 y 10 m de ti, con zona de captura chica (5 m). Ideal para sala, comedor y cocina. Ojo: adentro el GPS tiene un error de ±5 a 10 m, así que los metros bailan un poco — camina despacio y guíate por la flecha y por si te acercas o te alejas."
+    : "Modo Exterior: las abejas se esconden a 35, 65 y 95 m de ti. Es el modo para el viñedo o un jardín grande, donde el GPS sí es preciso (error de ±3 a 5 m).";
 }
 
 function updateHunt() {
@@ -1139,7 +1167,7 @@ function updateHunt() {
       var north = (z.lat - myPos.lat) * 111320;
       var east = (z.lng - myPos.lng) * 111320 * Math.cos(myPos.lat * Math.PI / 180);
       var dd = Math.sqrt(north * north + east * east) || 1;
-      var scale = 105 / (1 + dd / 120);
+      var scale = Math.min(105, dd * (isCasa() ? 9 : 0.9) + 15);
       var x = 120 + (east / dd) * scale, y = 120 - (north / dd) * scale;
       var blip = document.createElement("div");
       blip.className = "blip";
@@ -1149,28 +1177,29 @@ function updateHunt() {
         : bottleSVG(z.color, z.label);
       radar.appendChild(blip);
     }
+    var farTag = (isCasa() && !isF && d !== null && d > 25) ? "<br/><span class='small' style='color:var(--danger);'>Lejos para Modo Casa — bórrala en el Organizador o cambia a Exterior</span>" : "";
     html += '<li class="' + (isF ? "found" : "") + '">' +
       "<span>" + (z.game === "bees" ? "🐝" : "🍾") + "</span>" +
       "<span>" + esc(z.name) + "<br/><span class='muted small'>" +
         (z.game === "bees" ? esc(BEE_TYPES[z.beeType].name) : "Botella · " + esc(z.label || "Vino")) +
-        " · vale " + z.pts + " pts</span></span>" +
+        " · vale " + z.pts + " pts</span>" + farTag + "</span>" +
       '<span class="zd">' + (isF ? "✔ Atrapada" : (d === null ? "—" : fmtDist(d))) + "</span></li>";
   });
   list.innerHTML = html;
 
-  // Zumbido según la distancia a la más cercana sin atrapar
+  // Zona de captura REAL (en casa, máx. 5 m): fuera de ahí la cámara no revela nada
   var inZone = null;
   zs.forEach(function (z) {
     if (found[z.id]) return;
     var d = zoneDist(z);
-    if (d !== null && d <= z.radius) inZone = z;
+    if (d !== null && d <= catchRadius(z)) inZone = z;
   });
 
   $("btn-quick-scatter").textContent = game === "bees"
     ? "🐝 Esconder 3 abejas cerca de mí" : "🍾 Esconder 3 botellas cerca de mí";
 
   if (myPos && nearest) {
-    var tl = tempLabel(nearest.dist, nearest.zone.radius);
+    var tl = tempLabel(nearest.dist, catchRadius(nearest.zone));
     var trend = "";
     if (lastNearestDist !== null) {
       if (nearest.dist < lastNearestDist - 1) trend = " · te estás acercando ↓";
@@ -1185,8 +1214,9 @@ function updateHunt() {
       '<div class="muted" style="font-weight:700;">hasta «' + esc(nearest.zone.name) + "»" + trend + "</div>" +
       '<div class="small muted" style="font-weight:700;">Camina hacia donde apunta la flecha</div>' +
       '<span class="temp ' + tl.cls + '">' + tl.t + "</span>";
-    var prox = Math.max(0, Math.min(1, 1 - nearest.dist / 300));
-    if (nearest.dist < 300) { AudioSys.buzzStart(); AudioSys.buzzSet(prox); }
+    var br = buzzRange();
+    var prox = Math.max(0, Math.min(1, 1 - nearest.dist / br));
+    if (nearest.dist < br) { AudioSys.buzzStart(); AudioSys.buzzSet(prox); }
     else AudioSys.buzzStop();
   } else if (myPos) {
     near.innerHTML = '<p style="font-weight:800;">🎉 ¡Ya atrapaste todo lo escondido en este juego!</p>';
@@ -1256,28 +1286,54 @@ function beeDart() {
   if (navigator.vibrate) navigator.vibrate(30);
   toast("¡Casi! Se movió — tócala a ella 🐝", 1200);
 }
-/* Búsqueda: mientras la pieza no aparece, la flecha apunta hacia el
-   escondite. Aparece cuando el teléfono apunta a ese rumbo (±38°).
-   Si el teléfono no entrega brújula, aparece tras unos segundos de
-   barrido con la cámara, para que el juego nunca se quede atorado. */
+/* Búsqueda v3 — LA REGLA QUE FALTABA: la distancia manda.
+   La pieza SOLO aparece si se cumplen LAS DOS cosas:
+   1) Ya llegaste caminando: estás dentro del radio de captura real
+      (en Modo Casa, 5 m). Lejos, la cámara jamás la muestra, ni por
+      tiempo ni por girar el teléfono. Solo ves cuánto falta.
+   2) Ya estando ahí, apuntas la cámara hacia su rumbo (±38°).
+   Sin brújula: estando ya en el punto, aparece tras barrer la cámara
+   (girar el teléfono acumulando ~60° de giro), nunca por tiempo solo. */
+var camFirstHeading = null, camTurnAccum = 0, camLastHeading = null;
 function startSearch() {
   camRevealed = false;
   camOpenedAt = Date.now();
+  camFirstHeading = headingDeg; camTurnAccum = 0; camLastHeading = headingDeg;
   $("cam-target").classList.add("hidden");
   $("btn-catch").classList.add("hidden");
   $("cam-search").classList.remove("hidden");
-  $("cam-search-text").textContent = headingDeg !== null
-    ? "Busca con la cámara: gira el teléfono hacia donde apunta la flecha…"
-    : "Busca con la cámara: muévela despacio de un lado a otro…";
   clearInterval(camSearchTimer);
   camSearchTimer = setInterval(function () {
     if (camRevealed || !camZone) return;
-    if (headingDeg !== null && myPos) {
+    var d = myPos ? haversine(myPos, camZone) : null;
+    var need = catchRadius(camZone);
+    var txt = $("cam-search-text"), arr = $("cam-search-arrow");
+    /* Sin posición o en modo prueba sin GPS: en modo prueba el jugador ya
+       se teletransportó a la zona, así que se trata como "ya llegó". */
+    var arrived = testMode ? true : (d !== null && d <= need);
+    if (!arrived) {
+      arr.style.transform = "rotate(0deg)";
+      txt.innerHTML = "🚶 Todavía no llegas a su escondite.<br/>Estás a <b>" + (d === null ? "—" : fmtDist(d)) + "</b> — camina hasta estar a <b>" + need + " m o menos</b> y la abeja aparecerá aquí. La cámara está limpia a propósito.";
+      return;
+    }
+    if (headingDeg !== null && myPos && !testMode) {
+      if (camLastHeading !== null) {
+        var delta = Math.abs(((headingDeg - camLastHeading + 540) % 360) - 180);
+        camTurnAccum += Math.min(delta, 30);
+      }
+      camLastHeading = headingDeg;
       var rel = ((bearingTo(myPos, camZone) - headingDeg + 540) % 360) - 180;
-      $("cam-search-arrow").style.transform = "rotate(" + rel + "deg)";
+      arr.style.transform = "rotate(" + rel + "deg)";
+      txt.textContent = "¡Ya llegaste a su punto! Gira la cámara hacia donde apunta la flecha…";
       if (Math.abs(rel) <= 38) revealTarget();
-    } else if (Date.now() - camOpenedAt > 4500) {
-      revealTarget();
+    } else {
+      /* Sin brújula utilizable: exige barrido real de la cámara, no tiempo */
+      if (headingDeg !== null && camLastHeading !== null) {
+        var d2 = Math.abs(((headingDeg - camLastHeading + 540) % 360) - 180);
+        camTurnAccum += Math.min(d2, 30); camLastHeading = headingDeg;
+      }
+      txt.textContent = "¡Ya llegaste a su punto! Mueve la cámara despacio de un lado a otro buscándola…";
+      if (camTurnAccum > 60 || (testMode && Date.now() - camOpenedAt > 2500)) revealTarget();
     }
   }, 180);
 }
@@ -1336,6 +1392,11 @@ $("back-from-camera").addEventListener("click", function () {
 });
 function doCatch() {
   if (!camZone || found[camZone.id]) return;
+  if (!camRevealed) { toast("La abeja todavía no aparece: primero llega a su escondite."); return; }
+  if (!testMode && myPos) {
+    var dNow = haversine(myPos, camZone);
+    if (dNow > catchRadius(camZone) + 3) { toast("Te alejaste de su escondite (" + fmtDist(dNow) + "). Vuelve a su punto para atraparla."); return; }
+  }
   var z = camZone;
   found[z.id] = { game: z.game, name: z.name, pts: z.pts, when: Date.now() };
   points[z.game] += z.pts;
@@ -1483,7 +1544,7 @@ function buildOrganizer() {
     '<div class="field" style="border-top:1px solid var(--line); padding-top:14px;">' +
       '<span class="flabel">¿Sin tiempo de programar? Prueba rápida</span>' +
       '<button type="button" class="btn btn-block" id="org-examples">Crear 3 zonas de ejemplo a mi alrededor</button>' +
-      '<p class="muted small" style="margin:6px 0 0;">Usa tu ubicación real y esconde 3 piezas a unos 40, 80 y 120 m de ti, listas para cazar caminando.</p>' +
+      '<p class="muted small" style="margin:6px 0 0;">Usa tu ubicación real y esconde 3 piezas cerca de ti (en Modo Casa a 4, 7 y 10 m; en Exterior a 40, 80 y 120 m), listas para cazar caminando.</p>' +
       '<p class="small hidden" id="org-examples-status" style="font-weight:700;"></p>' +
     "</div>" +
   "</div>" +
@@ -1550,7 +1611,7 @@ function wireOrganizer(el) {
     st.textContent = "Buscando tu ubicación…";
     requestLocation(false).then(function (p) {
       var z = { id: uid(), game: "bees", beeType: "comun", name: "Abeja escondida",
-                lat: p.lat, lng: p.lng, radius: 15, pts: 10, when: Date.now() };
+                lat: p.lat, lng: p.lng, radius: isCasa() ? 5 : 15, pts: 10, when: Date.now() };
       zones.push(z);
       saveJSON(LS_ZONES, zones);
       st.textContent = "✅ ¡Escondida! Una abeja común quedó justo donde estás. Ya se puede cazar.";
@@ -1636,23 +1697,25 @@ function wireOrganizer(el) {
     st.textContent = "Buscando tu ubicación…";
     requestLocation(false).then(function (p) {
       var made = [];
+      var spotsEx = isCasa() ? [[4, 1], [-3, 6], [7, -5]] : [[45, 20], [-30, 80], [110, -50]];
+      var radEx = isCasa() ? 5 : 20;
       if (orgKind === "bee") {
         var types = ["comun", "dorada", "reina"];
-        var spots = [[45, 20], [-30, 80], [110, -50]];
+        var spots = spotsEx;
         types.forEach(function (t, i) {
           var c = offsetPos(p, spots[i][0], spots[i][1]);
           var z = { id: uid(), game: "bees", beeType: t, name: BEE_TYPES[t].name + " de ejemplo",
-                    lat: c.lat, lng: c.lng, radius: 20, pts: BEE_TYPES[t].pts, when: Date.now() };
+                    lat: c.lat, lng: c.lng, radius: radEx, pts: BEE_TYPES[t].pts, when: Date.now() };
           zones.push(z); made.push(z.name);
         });
       } else {
         var labels = ["Tinto Reserva", "Blanco", "Rosado"];
-        var spotsB = [[45, 20], [-30, 80], [110, -50]];
+        var spotsB = spotsEx;
         labels.forEach(function (lab, i) {
           var c = offsetPos(p, spotsB[i][0], spotsB[i][1]);
           var z = { id: uid(), game: "bottles", name: "Botella · " + lab, label: lab,
                     color: BOTTLE_COLORS[(zonesOf("bottles").length + i) % BOTTLE_COLORS.length],
-                    lat: c.lat, lng: c.lng, radius: 20, pts: 100, when: Date.now() };
+                    lat: c.lat, lng: c.lng, radius: radEx, pts: 100, when: Date.now() };
           zones.push(z); made.push(z.name);
         });
       }
