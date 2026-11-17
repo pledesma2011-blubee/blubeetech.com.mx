@@ -130,14 +130,16 @@ src="https://www.facebook.com/tr?id=1148884670839349&ev=PageView&noscript=1"
       @media (max-width:760px){
         .brand{margin-right:10px}
       }
-      .brand img{height:56px; width:auto; border-radius:9px; box-shadow:0 4px 14px rgba(0,0,0,.4), 0 0 0 1px rgba(170,215,255,.12), 0 0 6px 1px rgba(140,195,255,.10); animation:brandGlow 3.8s ease-in-out infinite}
-      /* Haz de luz azul blanca muy tenue alrededor de todo el marco del
-         logotipo, como una lucecita encendida detrás de él que parpadea
-         muy suavemente. Más fino y sutil que el aro verde de Daniela:
-         el anillo apenas llega a 2px y el resplandor es suave. */
+      .brand img{height:56px; width:auto; border-radius:9px; box-shadow:0 4px 14px rgba(0,0,0,.4), 0 0 0 2px rgba(170,215,255,.18), 0 0 10px 2px rgba(140,195,255,.16); animation:brandGlow 3.8s ease-in-out infinite}
+      /* Haz de luz azul blanca alrededor de todo el marco del logotipo,
+         como una lucecita encendida detrás de él que parpadea muy
+         suavemente. Un poco más ancho y ligeramente más intenso que al
+         principio (petición de Peter, 2026-11-16): el anillo llega a
+         3px y el resplandor se extiende hasta 18px en su punto máximo,
+         para que llame la atención y la gente note que es un botón. */
       @keyframes brandGlow{
-        0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.4), 0 0 0 1px rgba(170,215,255,.09), 0 0 5px 1px rgba(140,195,255,.07)}
-        50%{box-shadow:0 4px 14px rgba(0,0,0,.4), 0 0 0 2px rgba(195,228,255,.30), 0 0 11px 3px rgba(150,205,255,.22)}
+        0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.4), 0 0 0 2px rgba(170,215,255,.14), 0 0 9px 2px rgba(140,195,255,.12)}
+        50%{box-shadow:0 4px 14px rgba(0,0,0,.4), 0 0 0 3px rgba(195,228,255,.42), 0 0 18px 5px rgba(150,205,255,.34)}
       }
       /* Píldoras del menú: todas azul marino con letra blanca; la de la
          sección en la que estás va SIEMPRE en amarillo pleno (fondo y
