@@ -5361,7 +5361,7 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
         bee.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
         bee.addEventListener('dragstart', function (ev) { ev.preventDefault(); });
 
-        // Aparición automática: la primera a los 4 segundos; después, entre
+        // Aparición automática: la primera a los 3 segundos; después, entre
         // que la abeja DESAPARECE y vuelve a aparecer pasan EXACTAMENTE
         // 38, 43, 45 o 48 segundos, elegidos al azar en cada ciclo (los
         // tiempos acordados con Peter, 2026-11-16). Antes el arreglo traía
@@ -5407,7 +5407,7 @@ $("toast").addEventListener("click",function(e){ if(e.target!==$("toastClose")) 
           document.addEventListener('visibilitychange', function () {
             if (!document.hidden && beeAwaitingVisible) { autoBee(); }
           });
-          scheduleBee(4000);
+          scheduleBee(3000);
         }
       })();
     </script>
