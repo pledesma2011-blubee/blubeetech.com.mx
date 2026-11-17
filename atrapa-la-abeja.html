@@ -523,7 +523,7 @@
             <button class="btn btn-gold btn-block hidden" id="btn-catch" style="font-size:1.2rem;">🖐️ ¡Atraparla!</button>
           </div>
         </div>
-        <p class="muted small" style="margin-top:10px;"><b>La cámara abre limpia y la abeja NO está adentro.</b> Primero tienes que <b>llegar caminando</b> hasta su escondite: mientras estés lejos, la cámara solo te muestra la distancia que falta y la flecha, y la abeja no aparece por más que gires el teléfono. Solo cuando ya estés <b>sobre el punto</b> (a 5 m o menos en Modo Casa) y apuntes la cámara hacia donde está escondida, <b>aparece volando en ese punto</b>: tócala directamente para atraparla.</p>
+        <p class="muted small" style="margin-top:10px;"><b>La cámara abre limpia y la abeja NO está adentro.</b> Como en Pokémon GO, la pieza vive en un punto fijo del mundo, no pegada a tu pantalla. Primero tienes que <b>llegar caminando</b> hasta su escondite: mientras estés lejos, la cámara solo te muestra la distancia que falta y la flecha. Cuando ya estés <b>sobre el punto</b> (a 5 m o menos en Modo Casa) y apuntes la cámara hacia donde está escondida, <b>aparece volando en ese punto</b>: tócala para atraparla. Y ojo: <b>si te giras, desaparece</b> de tu vista (sigue en su punto; gira de vuelta y reaparece), y <b>si te alejas de la zona sin atraparla, el encuentro se acaba</b> y tendrás que acercarte de nuevo.</p>
       </section>
 
       <!-- ============ CELEBRACIÓN ============ -->
@@ -665,13 +665,55 @@
               Math.sin(from.lat * rad) * Math.cos(to.lat * rad) * Math.cos(dLng);
       return (Math.atan2(y, x) / rad + 360) % 360;
     }
-    /* Brújula del teléfono: gira la flecha de cacería en vivo */
+    /* Brújula del teléfono: gira la flecha de cacería en vivo.
+       CALIBRACIÓN (la queja de la flecha «descalibrada»): antes se escuchaban
+       DOS eventos a la vez —deviceorientationabsolute y deviceorientation— y
+       el segundo, que en Android es RELATIVO a donde apuntaba el teléfono al
+       abrir la página, pisaba al absoluto en cada giro: por eso al moverse a
+       la izquierda la flecha se iba a otro lado. Ahora:
+       1) Solo manda la brújula ABSOLUTA (norte real); la relativa se ignora
+          en cuanto llega la primera lectura absoluta.
+       2) El rumbo se suaviza con un filtro circular (sin saltos ni temblores).
+       3) Si la brújula se duerme, manda el rumbo GPS de la caminata. */
+    var headingIsAbsolute = false;
+    var lastOrientAt = 0;
+    var gpsHeading = null;   // rumbo de caminata según el GPS (coords.heading)
+    function smoothAngle(prev, next, k) {
+      var d = ((next - prev + 540) % 360) - 180;
+      return (prev + d * k + 360) % 360;
+    }
+    function effHeading() {
+      if (headingDeg !== null && Date.now() - lastOrientAt < 4000) return headingDeg;
+      if (gpsHeading !== null) return gpsHeading;
+      return headingDeg;
+    }
+    function noteGpsHeading(pos) {
+      if (pos && pos.coords && typeof pos.coords.heading === "number" &&
+          isFinite(pos.coords.heading) && (pos.coords.speed || 0) > 0.8) {
+        gpsHeading = pos.coords.heading;
+      }
+    }
+    function askOrientPermission() {
+      try {
+        if (typeof DeviceOrientationEvent !== "undefined" &&
+            typeof DeviceOrientationEvent.requestPermission === "function") {
+          DeviceOrientationEvent.requestPermission().catch(function () {});
+        }
+      } catch (e) {}
+    }
     function onOrient(e) {
-      var h = null;
-      if (typeof e.webkitCompassHeading === "number") h = e.webkitCompassHeading;
-      else if (typeof e.alpha === "number") h = 360 - e.alpha;
+      var h = null, abs = false;
+      if (typeof e.webkitCompassHeading === "number") { h = e.webkitCompassHeading; abs = true; }
+      else if (typeof e.alpha === "number") {
+        h = 360 - e.alpha;
+        abs = (e.type === "deviceorientationabsolute") || e.absolute === true;
+      }
       if (h === null || !isFinite(h)) return;
-      headingDeg = h;
+      if (!abs && headingIsAbsolute) return;  // la relativa ya no pisa a la absoluta
+      if (abs) headingIsAbsolute = true;
+      h = ((h % 360) + 360) % 360;
+      headingDeg = (headingDeg === null) ? h : smoothAngle(headingDeg, h, 0.35);
+      lastOrientAt = Date.now();
       var arrow = document.querySelector(".hunt-arrow");
       if (arrow) {
         var b = parseFloat(arrow.getAttribute("data-bearing"));
@@ -817,6 +859,7 @@
 
     function requestLocation(fromOrganizer) {
       AudioSys.ensure();
+      askOrientPermission();
       if (!("geolocation" in navigator)) {
         setGpsBox("err", { title: "Este navegador no tiene GPS", text: "Abre esta página en Chrome en tu teléfono para usar la ubicación real." });
         AudioSys.errorBuzz();
@@ -828,6 +871,7 @@
           function (pos) {
             myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy || null };
             lastGpsAt = Date.now();
+            noteGpsHeading(pos);
             testMode = false;
             setGpsBox("ok", {
               title: "📍 Ubicación fijada",
@@ -860,6 +904,7 @@
             if (testMode) return;
             myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy || null };
             lastGpsAt = Date.now();
+            noteGpsHeading(pos);
             updateHunt();
           },
           function () { /* el error ya se explicó en la petición inicial */ },
@@ -1136,8 +1181,8 @@ function refreshRangeUI() {
   if (c) c.classList.toggle("active", isCasa());
   if (e) e.classList.toggle("active", !isCasa());
   if (h) h.textContent = isCasa()
-    ? "Modo Casa: las abejas se esconden a 4, 7 y 10 m de ti, con zona de captura chica (5 m). Ideal para sala, comedor y cocina. Ojo: adentro el GPS tiene un error de ±5 a 10 m, así que los metros bailan un poco — camina despacio y guíate por la flecha y por si te acercas o te alejas."
-    : "Modo Exterior: las abejas se esconden a 35, 65 y 95 m de ti. Es el modo para el viñedo o un jardín grande, donde el GPS sí es preciso (error de ±3 a 5 m).";
+    ? "Modo Casa: las abejas se esconden a 4, 7 y 10 m de ti, con zona de captura chica (5 m). Ideal para sala, comedor y cocina. Ojo: adentro el GPS tiene un error de ±5 a 10 m, así que los metros bailan un poco — camina despacio y guíate por la flecha y por si te acercas o te alejas. Si la flecha apunta raro, calibra la brújula girando el teléfono en forma de 8 un par de veces."
+    : "Modo Exterior: las abejas se esconden a 35, 65 y 95 m de ti. Es el modo para el viñedo o un jardín grande, donde el GPS sí es preciso (error de ±3 a 5 m). Si la flecha apunta raro, calibra la brújula girando el teléfono en forma de 8 un par de veces.";
 }
 
 function updateHunt() {
@@ -1207,7 +1252,7 @@ function updateHunt() {
     }
     lastNearestDist = nearest.dist;
     var brg = bearingTo(myPos, nearest.zone);
-    var rot = brg - (headingDeg || 0);
+    var rot = brg - (effHeading() || 0);
     near.innerHTML =
       '<div><span class="hunt-arrow" data-bearing="' + brg.toFixed(1) + '" style="transform: rotate(' + rot + 'deg)">⬆</span></div>' +
       '<div class="dist">' + fmtDist(nearest.dist) + "</div>" +
@@ -1262,17 +1307,20 @@ function renderCollection() {
 var camZone = null, camStream = null;
 var camFlight = null, camMisses = 0;
 var camRevealed = false, camSearchTimer = null, camOpenedAt = 0;
+var camCenterX = 50;      // centro horizontal de la pieza según el rumbo relativo
+var camAwaySince = null;  // desde cuándo salí de la zona durante el encuentro
 function beeFly(fast) {
   var t = $("cam-target");
   if (!t) return;
   t.style.transitionDuration = fast ? "0.35s" : "1.05s";
-  t.style.left = (16 + Math.random() * 68) + "%";
+  var cx = camCenterX || 50;
+  t.style.left = Math.max(12, Math.min(88, cx + (Math.random() * 26 - 13))) + "%";
   t.style.top = (15 + Math.random() * 48) + "%";
 }
 function startFlight() {
   camMisses = 0;
   var t = $("cam-target");
-  t.style.left = "50%"; t.style.top = "40%";
+  t.style.left = (camCenterX || 50) + "%"; t.style.top = "40%";
   clearInterval(camFlight);
   camFlight = setInterval(function () { beeFly(false); }, 1150);
   setTimeout(function () { beeFly(false); }, 80);
@@ -1286,62 +1334,90 @@ function beeDart() {
   if (navigator.vibrate) navigator.vibrate(30);
   toast("¡Casi! Se movió — tócala a ella 🐝", 1200);
 }
-/* Búsqueda v3 — LA REGLA QUE FALTABA: la distancia manda.
-   La pieza SOLO aparece si se cumplen LAS DOS cosas:
-   1) Ya llegaste caminando: estás dentro del radio de captura real
-      (en Modo Casa, 5 m). Lejos, la cámara jamás la muestra, ni por
-      tiempo ni por girar el teléfono. Solo ves cuánto falta.
-   2) Ya estando ahí, apuntas la cámara hacia su rumbo (±38°).
-   Sin brújula: estando ya en el punto, aparece tras barrer la cámara
-   (girar el teléfono acumulando ~60° de giro), nunca por tiempo solo. */
+/* Encuentro v4 — COMO EN POKÉMON GO: la pieza vive en un punto del mundo,
+   no pegada a la pantalla. El vigilante (camTick) corre DURANTE TODO el
+   encuentro, también después de que aparece, y aplica tres reglas:
+   1) APARECER: solo si ya llegaste caminando (dentro del radio de captura
+      real, 5 m en Modo Casa) Y apuntas la cámara hacia su rumbo (±38°).
+      Lejos, la cámara jamás la muestra: solo ves cuánto falta.
+   2) GIRARTE = DESAPARECE: si ya visible te giras y su rumbo sale de tu
+      vista (más de ±58°), se va de la pantalla. Sigue en su punto: al
+      girar de vuelta hacia la flecha, reaparece. Igual que un Pokémon
+      en modo RA: está en un lugar, no flotando frente a ti.
+   3) ALEJARTE = SE ACABA EL ENCUENTRO: si sales de su zona (radio + 3 m
+      de margen) por más de ~1 s, la cámara se cierra y la pieza vuelve a
+      estar «escondida» en el radar. Nada de atraparla desde lejos ni de
+      que se quede pegada en pantalla mientras caminas a otro lado.
+   Sin brújula utilizable: estando ya en el punto, aparece tras barrer la
+   cámara (girar acumulando ~60°), nunca por tiempo solo; y sin brújula no
+   se puede detectar el giro, así que solo manda la regla de alejarse. */
 var camFirstHeading = null, camTurnAccum = 0, camLastHeading = null;
 function startSearch() {
   camRevealed = false;
   camOpenedAt = Date.now();
-  camFirstHeading = headingDeg; camTurnAccum = 0; camLastHeading = headingDeg;
+  camFirstHeading = effHeading(); camTurnAccum = 0; camLastHeading = effHeading();
+  camCenterX = 50; camAwaySince = null;
   $("cam-target").classList.add("hidden");
   $("btn-catch").classList.add("hidden");
   $("cam-search").classList.remove("hidden");
   clearInterval(camSearchTimer);
-  camSearchTimer = setInterval(function () {
-    if (camRevealed || !camZone) return;
-    var d = myPos ? haversine(myPos, camZone) : null;
-    var need = catchRadius(camZone);
-    var txt = $("cam-search-text"), arr = $("cam-search-arrow");
-    /* Sin posición o en modo prueba sin GPS: en modo prueba el jugador ya
-       se teletransportó a la zona, así que se trata como "ya llegó". */
-    var arrived = testMode ? true : (d !== null && d <= need);
-    if (!arrived) {
-      arr.style.transform = "rotate(0deg)";
-      txt.innerHTML = "🚶 Todavía no llegas a su escondite.<br/>Estás a <b>" + (d === null ? "—" : fmtDist(d)) + "</b> — camina hasta estar a <b>" + need + " m o menos</b> y la abeja aparecerá aquí. La cámara está limpia a propósito.";
-      return;
+  camSearchTimer = setInterval(camTick, 180);
+  camTick();
+}
+function camTick() {
+  if (!camZone) return;
+  var d = myPos ? haversine(myPos, camZone) : null;
+  var need = catchRadius(camZone);
+  var txt = $("cam-search-text"), arr = $("cam-search-arrow");
+  /* Regla 3: salirse de la zona termina el encuentro */
+  if (!testMode && d !== null && d > need + 3) {
+    if (!camAwaySince) camAwaySince = Date.now();
+    if (Date.now() - camAwaySince > 1000) { endEncounter(); return; }
+  } else {
+    camAwaySince = null;
+  }
+  /* En modo prueba el jugador ya se teletransportó a la zona: «ya llegó» */
+  var arrived = testMode ? true : (d !== null && d <= need);
+  if (!arrived) {
+    if (camRevealed) hideTarget(false);
+    arr.style.transform = "rotate(0deg)";
+    txt.innerHTML = "🚶 Todavía no llegas a su escondite.<br/>Estás a <b>" + (d === null ? "—" : fmtDist(d)) + "</b> — camina hasta estar a <b>" + need + " m o menos</b> y aparecerá aquí. La cámara está limpia a propósito.";
+    return;
+  }
+  var head = effHeading();
+  if (head !== null && myPos && !testMode) {
+    if (camLastHeading !== null) {
+      var delta = Math.abs(((head - camLastHeading + 540) % 360) - 180);
+      camTurnAccum += Math.min(delta, 30);
     }
-    if (headingDeg !== null && myPos && !testMode) {
-      if (camLastHeading !== null) {
-        var delta = Math.abs(((headingDeg - camLastHeading + 540) % 360) - 180);
-        camTurnAccum += Math.min(delta, 30);
-      }
-      camLastHeading = headingDeg;
-      var rel = ((bearingTo(myPos, camZone) - headingDeg + 540) % 360) - 180;
-      arr.style.transform = "rotate(" + rel + "deg)";
-      txt.textContent = "¡Ya llegaste a su punto! Gira la cámara hacia donde apunta la flecha…";
-      if (Math.abs(rel) <= 38) revealTarget();
-    } else {
-      /* Sin brújula utilizable: exige barrido real de la cámara, no tiempo */
-      if (headingDeg !== null && camLastHeading !== null) {
-        var d2 = Math.abs(((headingDeg - camLastHeading + 540) % 360) - 180);
-        camTurnAccum += Math.min(d2, 30); camLastHeading = headingDeg;
-      }
+    camLastHeading = head;
+    var rel = ((bearingTo(myPos, camZone) - head + 540) % 360) - 180;
+    arr.style.transform = "rotate(" + rel + "deg)";
+    if (Math.abs(rel) <= 58) camCenterX = 50 + (rel / 58) * 28;
+    if (Math.abs(rel) <= 38) {
+      if (!camRevealed) revealTarget();
+    } else if (Math.abs(rel) > 58 && camRevealed) {
+      hideTarget(true);   /* Regla 2: te giraste, desaparece */
+    }
+    if (!camRevealed) txt.textContent = "¡Ya llegaste a su punto! Gira la cámara hacia donde apunta la flecha…";
+  } else {
+    /* Sin brújula utilizable: exige barrido real de la cámara, no tiempo */
+    if (head !== null && camLastHeading !== null) {
+      var d2 = Math.abs(((head - camLastHeading + 540) % 360) - 180);
+      camTurnAccum += Math.min(d2, 30); camLastHeading = head;
+    }
+    if (!camRevealed) {
       txt.textContent = "¡Ya llegaste a su punto! Mueve la cámara despacio de un lado a otro buscándola…";
       if (camTurnAccum > 60 || (testMode && Date.now() - camOpenedAt > 2500)) revealTarget();
     }
-  }, 180);
+  }
 }
 function stopSearch() { clearInterval(camSearchTimer); camSearchTimer = null; }
 function revealTarget() {
   if (camRevealed || !camZone) return;
   camRevealed = true;
-  stopSearch();
+  /* OJO: el vigilante camTick SIGUE corriendo tras aparecer — es quien la
+     desaparece si te giras o te alejas. */
   $("cam-search").classList.add("hidden");
   $("cam-target").classList.remove("hidden");
   $("btn-catch").classList.remove("hidden");
@@ -1350,6 +1426,23 @@ function revealTarget() {
   AudioSys.buzzStart(); AudioSys.buzzSet(0.9);
   startFlight();
 }
+function hideTarget(turnedAway) {
+  if (!camRevealed) return;
+  camRevealed = false;
+  stopFlight();
+  $("cam-target").classList.add("hidden");
+  $("btn-catch").classList.add("hidden");
+  $("cam-search").classList.remove("hidden");
+  $("cam-place").textContent = "Está escondida aquí cerca… búscala con la cámara";
+  if (turnedAway) toast("👀 Se te fue de la vista: está en su punto, no frente a ti. Gira de vuelta hacia la flecha.", 1800);
+}
+function endEncounter() {
+  var name = camZone ? camZone.name : "";
+  stopCamera();
+  show("view-game");
+  updateHunt();
+  toast("💨 «" + name + "» desapareció: saliste de su zona sin atraparla. Acércate otra vez a su punto para que aparezca.", 4600);
+}
 $("cam-stage").addEventListener("click", function (e) {
   if ($("view-camera").classList.contains("hidden") || !camZone || !camRevealed) return;
   if (e.target === $("cam-stage") || e.target === $("cam-video")) beeDart();
@@ -1357,6 +1450,7 @@ $("cam-stage").addEventListener("click", function (e) {
 $("btn-open-cam").addEventListener("click", function () {
   var z = zonesOf(game).filter(function (x) { return x.id === insideZoneId; })[0];
   if (!z) return;
+  askOrientPermission();
   camZone = z;
   var tap = $("cam-target");
   tap.innerHTML = z.game === "bees"
